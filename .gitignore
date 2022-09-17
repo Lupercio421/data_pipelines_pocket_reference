@@ -1,6 +1,12 @@
 #configuration files
 *.conf
 
+# Sudo password and DB password
+psswd.txt
+
+# Amazon RDS - MySQL credentials
+new_user_credentials (1).csv
+amazonrds.text
 
 *.pyc
 *.exe
