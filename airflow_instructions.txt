@@ -2,8 +2,10 @@
 # somewhere else if you prefer (optional)
 export AIRFLOW_HOME=~/airflow
 
+export AIRFLOW_HOME=/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/airflowhome
+
 # Install Airflow using the constraints file
-AIRFLOW_VERSION=2.6.0
+AIRFLOW_VERSION=2.6.1
 PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
 # For example: 3.7
 CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
