@@ -1,0 +1,175 @@
+-- SQLBook: Code
+CREATE TABLE Orders (
+  OrderId int,
+  OrderStatus varchar(30),
+  LastUpdated timestamp
+);
+
+INSERT INTO Orders
+  VALUES(1,'Backordered', '2020-06-01');
+INSERT INTO Orders
+  VALUES(1,'Shipped', '2020-06-09');
+INSERT INTO Orders
+  VALUES(2,'Shipped', '2020-07-11');
+INSERT INTO Orders
+  VALUES(1,'Shipped', '2020-06-09');
+INSERT INTO Orders
+  VALUES(3,'Shipped', '2020-07-12');
+
+  SELECT * from orders;
+-- SQLBook: Code
+select
+    OrderId,
+    OrderStatus,
+    LastUpdated,
+    count(*) as dup_count
+from
+    Orders
+group by
+    OrderId,
+    OrderStatus,
+    LastUpdated
+Having
+    COUNT(*) > 1;
+-- SQLBook: Markup
+distinct_orders_1.sql
+-- SQLBook: Code
+CREATE TABLE distinct_orders AS
+SELECT DISTINCT OrderId,
+  OrderStatus,
+  LastUpdated
+FROM ORDERS;
+
+-- TRUNCATE TABLE Orders;
+
+-- insert into Orders select * from distinct_orders;
+SELECT* FROM Orders;
+select * from distinct_orders;
+
+drop table distinct_orders;
+-- SQLBook: Code
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated,
+  ROW_NUMBER() OVER(PARTITION BY OrderId,
+                    OrderStatus,
+                    LastUpdated)
+    AS dup_count
+FROM Orders;
+-- SQLBook: Code
+-- drop table orders;
+-- SQLBook: Markup
+distinct_orders_2.sql
+-- SQLBook: Code
+CREATE TABLE all_orders AS
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated,
+  ROW_NUMBER() OVER(PARTITION BY OrderId,
+                    OrderStatus,
+                    LastUpdated)
+    AS dup_count
+FROM Orders;
+
+TRUNCATE TABLE Orders;
+
+-- only insert non-duplicated records
+INSERT INTO Orders
+  (OrderId, OrderStatus, LastUpdated)
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated
+FROM all_orders
+WHERE
+  dup_count = 1;
+
+DROP TABLE all_orders;
+-- SQLBook: Markup
+orders_customers_tables_full.sql
+-- SQLBook: Code
+DROP table Orders
+-- SQLBook: Code
+CREATE TABLE Orders (
+  OrderId int,
+  OrderStatus varchar(30),
+  OrderDate timestamp,
+  CustomerId int,
+  OrderTotal numeric
+);
+
+INSERT INTO Orders
+  VALUES(1,'Shipped','2020-06-09',100,50.05);
+INSERT INTO Orders
+  VALUES(2,'Shipped','2020-07-11',101,57.45);
+INSERT INTO Orders
+  VALUES(3,'Shipped','2020-07-12',102,135.99);
+INSERT INTO Orders
+  VALUES(4,'Shipped','2020-07-12',100,43.00);
+
+SELECT * FROM orders;
+
+CREATE TABLE Customers
+(
+  CustomerId int,
+  CustomerName varchar(20),
+  CustomerCountry varchar(10)
+);
+
+INSERT INTO Customers VALUES(100,'Jane','USA');
+INSERT INTO Customers VALUES(101,'Bob','UK');
+INSERT INTO Customers VALUES(102,'Miles','UK');
+-- SQLBook: Markup
+order_summary_daily
+-- SQLBook: Code
+CREATE TABLE IF NOT EXISTS order_summary_daily (
+    order_date date,
+    order_country varchar(10),
+    total_revenue numeric,
+    order_count int
+);
+insert into
+    order_summary_daily (
+        order_date,
+        order_country,
+        total_revenue,
+        order_count
+    )
+select
+    o.OrderDate as order_date,
+    c.CustomerCountry as order_country,
+    sum(o.OrderTotal) as total_revenue,
+    count(o.OrderId) as order_count
+from Orders o
+inner join Customers c on 
+    c.CustomerId = o.Customerid
+group by o.OrderDate, c.CustomerCountry
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Code
+select
+    date_part('month', order_date) as order_month,
+    order_country,
+    sum(total_revenue) as order_revenue
+from
+    order_summary_daily
+group by
+    date_part('month', order_date),
+    order_country
+order by 
+    date_part('month', order_date),
+    order_country;
+-- SQLBook: Markup
+How many orders were placed on a given day?
+-- SQLBook: Code
+select
+    order_date,
+    sum(order_count) as total_orders
+from
+    order_summary_daily
+GROUP BY
+    order_date
+order by
+    order_date
