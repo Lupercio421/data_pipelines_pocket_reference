@@ -173,3 +173,129 @@ GROUP BY
     order_date
 order by
     order_date
+-- SQLBook: Code
+select * from order_summary_daily;
+select * from orders;
+-- SQLBook: Markup
+Type II slowly changing dimension (Type II SCD) - add a new record to a table for each change to an entity, including the date range that the record was valid.
+-- SQLBook: Code
+CREATE TABLE Customers_scd
+(
+    CustomerID int, 
+    CustomerName varchar(20),
+    CustomerCountry varchar(10),
+    ValidFrom timestamp,
+    Expired timestamp
+);
+
+INSERT INTO Customers_scd
+  VALUES(100,'Jane','USA','2019-05-01 7:01:10',
+    '2020-06-20 8:15:34');
+INSERT INTO Customers_scd
+  VALUES(100,'Jane','UK','2020-06-20 8:15:34',
+    '2199-12-31 00:00:00');
+-- SQLBook: Markup
+Join the SCD w/ the Orders table you created earlier to get the properties of the customer record at the time of the order.
+-- SQLBook: Code
+select
+    o.OrderId,
+    o.OrderDate,
+    c.CustomerName,
+    c.CustomerCountry
+from
+    Orders as o
+    inner join Customers_scd as c on o.CustomerId = c.CustomerId
+    and o.OrderDate between c.ValidFrom
+    and c.Expired
+order by
+    o.Orderdate;
+-- SQLBook: Markup
+Modeling Incremental Changing Data
+-- SQLBook: Code
+create table Customers_staging(
+    CustomerId int,
+    CustomerName varchar(20),
+    CustomerCountry varchar(10),
+    LastUpdated timestamp
+);
+
+INSERT INTO Customers_staging
+  VALUES(100,'Jane','USA','2019-05-01 7:01:10');
+INSERT INTO Customers_staging
+  VALUES(101,'Bob','UK','2020-01-15 13:05:31');
+INSERT INTO Customers_staging
+  VALUES(102,'Miles','UK','2020-01-29 9:12:00');
+INSERT INTO Customers_staging
+  VALUES(100,'Jane','UK','2020-06-20 8:15:34');
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Markup
+Lets model our logic by allocating Jane to her current country
+-- SQLBook: Code
+create table order_summary_daily_current
+(
+    order_date date,
+    order_country varchar(10),
+    total_revenue numeric,
+    order_count int
+);
+
+insert into order_summary_daily_current
+(
+    order_date, order_country, total_revenue, order_count
+) with customers_current as
+(
+    select CustomerId, Max(LastUpdated) as latest_update
+    from Customers_staging
+    group by CustomerId
+)
+select 
+    o.OrderDate as order_date,
+    cs.CustomerCountry as order_country,
+    sum(o.OrderTotal) as total_revenue,
+    count(o.OrderId) as order_count
+from Orders o
+inner join customers_current cc
+    on cc.CustomerId = o.CustomerId
+inner join Customers_staging cs
+    on cs.CustomerId = cc.customerid
+        AND cs.LastUpdated = cc.latest_update
+group by o.OrderDate, cs.CustomerCountry;
+-- SQLBook: Code
+select CustomerId, Max(LastUpdated) as latest_update
+    from Customers_staging
+    group by CustomerId;
+-- SQLBook: Code
+-- select 
+--     o.OrderDate as order_date,
+--     cs.CustomerCountry as order_country,
+--     sum(o.OrderTotal) as total_revenue,
+--     count(o.OrderId) as order_count
+-- from Orders o
+-- inner join customers_current cc
+--     on cc.CustomerId = o.CustomerId
+-- inner join Customers_staging cs
+--     on cs.CustomerId = cc.customerid
+--         AND cs.LastUpdated = cc.latest_update
+-- group by o.OrderDate, cs.CustomerCountry;
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Code
+select
+    date_part('month', order_date) as order_month,
+    order_country,
+    sum(total_revenue) as order_revenue
+from
+    order_summary_daily_current
+group by
+    date_part('month', order_date),
+    order_country
+order by
+    date_part('month', order_date),
+    order_country;
+-- SQLBook: Markup
+If instead you want to allocate orders to the country that the customers lived in a the time of order, then logic should be different. 
+
+Instead, find the most recent record that was updated on or before the time of each order placed by each customer
+
+"I want the information about the customer that was valid at the time the
