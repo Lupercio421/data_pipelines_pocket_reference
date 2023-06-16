@@ -15,7 +15,7 @@ dag = DAG(
 extract_orders_task = BashOperator(
     task_id = 'extract_order_data',
     bash_command = 'python /p/extract_orders.py',
-    start_date = days_ago(1)
+    start_date = days_ago(1),
     dag = dag
 )
 
