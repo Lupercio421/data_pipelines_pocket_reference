@@ -1,0 +1,674 @@
+-- SQLBook: Code
+CREATE TABLE Orders (
+  OrderId int,
+  OrderStatus varchar(30),
+  LastUpdated timestamp
+);
+
+INSERT INTO Orders
+  VALUES(1,'Backordered', '2020-06-01');
+INSERT INTO Orders
+  VALUES(1,'Shipped', '2020-06-09');
+INSERT INTO Orders
+  VALUES(2,'Shipped', '2020-07-11');
+INSERT INTO Orders
+  VALUES(1,'Shipped', '2020-06-09');
+INSERT INTO Orders
+  VALUES(3,'Shipped', '2020-07-12');
+
+  SELECT * from orders;
+-- SQLBook: Code
+select
+    OrderId,
+    OrderStatus,
+    LastUpdated,
+    count(*) as dup_count
+from
+    Orders
+group by
+    OrderId,
+    OrderStatus,
+    LastUpdated
+Having
+    COUNT(*) > 1;
+-- SQLBook: Markup
+distinct_orders_1.sql
+-- SQLBook: Code
+CREATE TABLE distinct_orders AS
+SELECT DISTINCT OrderId,
+  OrderStatus,
+  LastUpdated
+FROM ORDERS;
+
+-- TRUNCATE TABLE Orders;
+
+-- insert into Orders select * from distinct_orders;
+SELECT* FROM Orders;
+select * from distinct_orders;
+
+drop table distinct_orders;
+-- SQLBook: Code
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated,
+  ROW_NUMBER() OVER(PARTITION BY OrderId,
+                    OrderStatus,
+                    LastUpdated)
+    AS dup_count
+FROM Orders;
+-- SQLBook: Code
+-- drop table orders;
+-- SQLBook: Markup
+distinct_orders_2.sql
+-- SQLBook: Code
+CREATE TABLE all_orders AS
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated,
+  ROW_NUMBER() OVER(PARTITION BY OrderId,
+                    OrderStatus,
+                    LastUpdated)
+    AS dup_count
+FROM Orders;
+
+TRUNCATE TABLE Orders;
+
+-- only insert non-duplicated records
+INSERT INTO Orders
+  (OrderId, OrderStatus, LastUpdated)
+SELECT
+  OrderId,
+  OrderStatus,
+  LastUpdated
+FROM all_orders
+WHERE
+  dup_count = 1;
+
+DROP TABLE all_orders;
+-- SQLBook: Markup
+orders_customers_tables_full.sql
+-- SQLBook: Code
+DROP table Orders
+-- SQLBook: Code
+CREATE TABLE Orders (
+  OrderId int,
+  OrderStatus varchar(30),
+  OrderDate timestamp,
+  CustomerId int,
+  OrderTotal numeric
+);
+
+INSERT INTO Orders
+  VALUES(1,'Shipped','2020-06-09',100,50.05);
+INSERT INTO Orders
+  VALUES(2,'Shipped','2020-07-11',101,57.45);
+INSERT INTO Orders
+  VALUES(3,'Shipped','2020-07-12',102,135.99);
+INSERT INTO Orders
+  VALUES(4,'Shipped','2020-07-12',100,43.00);
+
+SELECT * FROM orders;
+
+CREATE TABLE Customers
+(
+  CustomerId int,
+  CustomerName varchar(20),
+  CustomerCountry varchar(10)
+);
+
+INSERT INTO Customers VALUES(100,'Jane','USA');
+INSERT INTO Customers VALUES(101,'Bob','UK');
+INSERT INTO Customers VALUES(102,'Miles','UK');
+-- SQLBook: Markup
+order_summary_daily
+-- SQLBook: Code
+CREATE TABLE IF NOT EXISTS order_summary_daily (
+    order_date date,
+    order_country varchar(10),
+    total_revenue numeric,
+    order_count int
+);
+insert into
+    order_summary_daily (
+        order_date,
+        order_country,
+        total_revenue,
+        order_count
+    )
+select
+    o.OrderDate as order_date,
+    c.CustomerCountry as order_country,
+    sum(o.OrderTotal) as total_revenue,
+    count(o.OrderId) as order_count
+from Orders o
+inner join Customers c on 
+    c.CustomerId = o.Customerid
+group by o.OrderDate, c.CustomerCountry
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Code
+select
+    date_part('month', order_date) as order_month,
+    order_country,
+    sum(total_revenue) as order_revenue
+from
+    order_summary_daily
+group by
+    date_part('month', order_date),
+    order_country
+order by 
+    date_part('month', order_date),
+    order_country;
+-- SQLBook: Markup
+How many orders were placed on a given day?
+-- SQLBook: Code
+select
+    order_date,
+    sum(order_count) as total_orders
+from
+    order_summary_daily
+GROUP BY
+    order_date
+order by
+    order_date
+-- SQLBook: Code
+select * from order_summary_daily;
+select * from orders;
+-- SQLBook: Markup
+Type II slowly changing dimension (Type II SCD) - add a new record to a table for each change to an entity, including the date range that the record was valid.
+-- SQLBook: Code
+CREATE TABLE Customers_scd
+(
+    CustomerID int, 
+    CustomerName varchar(20),
+    CustomerCountry varchar(10),
+    ValidFrom timestamp,
+    Expired timestamp
+);
+
+INSERT INTO Customers_scd
+  VALUES(100,'Jane','USA','2019-05-01 7:01:10',
+    '2020-06-20 8:15:34');
+INSERT INTO Customers_scd
+  VALUES(100,'Jane','UK','2020-06-20 8:15:34',
+    '2199-12-31 00:00:00');
+-- SQLBook: Markup
+Join the SCD w/ the Orders table you created earlier to get the properties of the customer record at the time of the order.
+-- SQLBook: Code
+select
+    o.OrderId,
+    o.OrderDate,
+    c.CustomerName,
+    c.CustomerCountry
+from
+    Orders as o
+    inner join Customers_scd as c on o.CustomerId = c.CustomerId
+    and o.OrderDate between c.ValidFrom
+    and c.Expired
+order by
+    o.Orderdate;
+-- SQLBook: Markup
+Modeling Incremental Changing Data
+-- SQLBook: Code
+create table Customers_staging(
+    CustomerId int,
+    CustomerName varchar(20),
+    CustomerCountry varchar(10),
+    LastUpdated timestamp
+);
+
+INSERT INTO Customers_staging
+  VALUES(100,'Jane','USA','2019-05-01 7:01:10');
+INSERT INTO Customers_staging
+  VALUES(101,'Bob','UK','2020-01-15 13:05:31');
+INSERT INTO Customers_staging
+  VALUES(102,'Miles','UK','2020-01-29 9:12:00');
+INSERT INTO Customers_staging
+  VALUES(100,'Jane','UK','2020-06-20 8:15:34');
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Markup
+Lets model our logic by allocating Jane to her current country
+-- SQLBook: Code
+create table order_summary_daily_current
+(
+    order_date date,
+    order_country varchar(10),
+    total_revenue numeric,
+    order_count int
+);
+
+insert into order_summary_daily_current
+(
+    order_date, order_country, total_revenue, order_count
+) with customers_current as
+(
+    select CustomerId, Max(LastUpdated) as latest_update
+    from Customers_staging
+    group by CustomerId
+)
+select 
+    o.OrderDate as order_date,
+    cs.CustomerCountry as order_country,
+    sum(o.OrderTotal) as total_revenue,
+    count(o.OrderId) as order_count
+from Orders o
+inner join customers_current cc
+    on cc.CustomerId = o.CustomerId
+inner join Customers_staging cs
+    on cs.CustomerId = cc.customerid
+        AND cs.LastUpdated = cc.latest_update
+group by o.OrderDate, cs.CustomerCountry;
+-- SQLBook: Code
+select CustomerId, Max(LastUpdated) as latest_update
+    from Customers_staging
+    group by CustomerId;
+-- SQLBook: Code
+-- select 
+--     o.OrderDate as order_date,
+--     cs.CustomerCountry as order_country,
+--     sum(o.OrderTotal) as total_revenue,
+--     count(o.OrderId) as order_count
+-- from Orders o
+-- inner join customers_current cc
+--     on cc.CustomerId = o.CustomerId
+-- inner join Customers_staging cs
+--     on cs.CustomerId = cc.customerid
+--         AND cs.LastUpdated = cc.latest_update
+-- group by o.OrderDate, cs.CustomerCountry;
+-- SQLBook: Markup
+How much revenue was generated from orders placed from a given country in a given month?
+-- SQLBook: Code
+select
+    date_part('month', order_date) as order_month,
+    order_country,
+    sum(total_revenue) as order_revenue
+from
+    order_summary_daily_current
+group by
+    date_part('month', order_date),
+    order_country
+order by
+    date_part('month', order_date),
+    order_country;
+-- SQLBook: Markup
+If instead you want to allocate orders to the country that the customers lived in a the time of order, then logic should be different. 
+
+Instead, find the most recent record that was updated on or before the time of each order placed by each customer
+
+"I want the information about the customer that was valid at the time they placed the order"
+-- SQLBook: Markup
+The customer_pit (point in time) CTE in the following sample contains the MAX(cs.LastUpdated) for each CustomerId/OrderId pair.
+
+I must join based on the OrderId and CustomerId
+-- SQLBook: Code
+create table order_summary_daily_pit (
+    order_date date,
+    order_country varchar(10),
+    total_revenue numeric,
+    order_count int
+);
+insert into
+    order_summary_daily_pit (
+        order_date,
+        order_country,
+        total_revenue,
+        order_count
+    ) with customer_pit as (
+        select
+            cs.CustomerId,
+            o.OrderId,
+            Max(cs.LastUpdated) as max_update_date
+        from
+            Orders o
+            inner join customers_staging as cs on cs.customerid = o.customerid
+            and cs.lastupdated <= o.orderdate
+        group by
+            cs.customerid,
+            o.orderId
+    )
+SELECT
+    o.OrderDate AS order_date,
+    cs.CustomerCountry AS order_country,
+    SUM(o.OrderTotal) AS total_revenue,
+    COUNT(o.OrderId) AS order_count
+FROM
+    Orders o
+    INNER JOIN customer_pit cp ON cp.CustomerId = o.CustomerId
+    AND cp.OrderId = o.OrderId
+    INNER JOIN Customers_staging cs ON cs.CustomerId = cp.CustomerId
+    AND cs.LastUpdated = cp.max_update_date
+GROUP BY
+    o.OrderDate,
+    cs.CustomerCountry;
+-- SQLBook: Code
+select
+    date_part('month', order_date) as order_month,
+    order_country,
+    sum(total_revenue) as order_revenue
+from
+    order_summary_daily_pit
+group by
+    date_part('month', order_date),
+    order_country
+order by
+    date_part('month', order_date),
+    order_country;
+-- SQLBook: Markup
+# Modeling Append-Only Data
+-- SQLBook: Markup
+PageViews table
+-- SQLBook: Code
+CREATE TABLE PageViews (
+  CustomerId int,
+  ViewTime timestamp,
+  UrlPath varchar(250),
+  utm_medium varchar(50)
+);
+
+INSERT INTO PageViews
+  VALUES(100,'2020-06-01 12:00:00',
+    '/home','social');
+INSERT INTO PageViews
+  VALUES(100,'2020-06-01 12:00:13',
+    '/product/2554',NULL);
+INSERT INTO PageViews
+  VALUES(101,'2020-06-01 12:01:30',
+    '/product/6754','search');
+INSERT INTO PageViews
+  VALUES(102,'2020-06-02 7:05:00',
+    '/home','NULL');
+INSERT INTO PageViews
+  VALUES(101,'2020-06-02 12:00:00',
+    '/product/2554','social');
+-- SQLBook: Markup
+PageViews Daily table
+-- SQLBook: Code
+create table pageviews_daily
+(
+    view_date date,
+    url_path VARCHAR(250),
+    customer_country varchar(50),
+    view_count int
+);
+-- SQLBook: Markup
+pageviews_daily.sql
+-- SQLBook: Code
+insert into
+    pageviews_daily (
+        view_date,
+        url_path,
+        customer_country,
+        view_count
+    )
+SELECT
+    CAST(p.ViewTime as Date) as view_date,
+    p.UrlPath as url_path,
+    c.customercountry as customer_country,
+    count(*) as view_count
+from
+    pageviews as p
+    left join Customers as c on c.customerid = p.customerid
+GROUP BY
+    cast(p.viewtime as Date),
+    p.urlpath,
+    c.customercountry;
+-- SQLBook: Markup
+How many page views do customers from each country generate each day?
+-- SQLBook: Code
+--group by customer_country
+select
+    view_date,
+    customer_country,
+    sum(view_count) as sum
+from
+    pageviews_daily
+group by
+    customer_country,
+    view_date
+order by
+    customer_country,
+    view_date;
+-- SQLBook: Markup
+Load new records from PageViews into pagevies_daily. This is a incrementally refreshing the model
+-- SQLBook: Code
+select * 
+from pageviews_daily
+ORDER BY view_date, url_path, customer_country;
+-- SQLBook: Code
+--Insert 2 new records into database
+INSERT INTO pageviews values (102, '2020-06-02 12:03:42', '/home', NULL);
+INSERT INTO pageviews values (101, '2020-06-03 12:25:01', '/product/567', 'social');
+SELECT * from pageviews;
+-- SQLBook: Markup
+THIS IS NOT THE CORRECT APPROACH. But lets create another copy of pageviews and call it pageviews_daily_2
+-- SQLBook: Code
+CREATE TABLE pageviews_daily_2 AS
+SELECT * FROM pageviews_daily;
+-- SQLBook: Code
+INSERT INTO pageviews_daily_2
+  (view_date, url_path,
+  customer_country, view_count)
+SELECT
+  CAST(p.ViewTime as Date) AS view_date,
+  p.UrlPath AS url_path,
+  c.CustomerCountry AS customer_country,
+  COUNT(*) AS view_count
+FROM PageViews p
+LEFT JOIN Customers c
+  ON c.CustomerId = p.CustomerId
+WHERE
+  p.ViewTime >
+  (SELECT MAX(view_date) FROM pageviews_daily_2)
+GROUP BY
+  CAST(p.ViewTime as Date),
+  p.UrlPath,
+  c.CustomerCountry;
+-- SQLBook: Markup
+We will end up with several duplicate records bc all events from 06/02/2020 at midnight and after are included in the refresh. 
+
+Page views from 06/02/20 that were previously accounted for in the model are counted again.
+-- SQLBook: Code
+select * from pageviews_daily_2 order by view_date, url_path, customer_country;
+-- SQLBook: Markup
+Two pagevies from 06/02/20 that were previously added to pageviews_daily_2 were added again:
+-- SQLBook: Code
+select view_date, sum(view_count) as daily_views
+from pageviews_daily_2 group by view_date order by view_date;
+-- SQLBook: Markup
+Another approach that many analysts take iss to store the full timestamp of the final record from PageViews table and use it as the next starting point for the incremental refresh. INCORRECT SOLUTION
+-- SQLBook: Code
+CREATE TABLE pageviews_daily_3 AS
+SELECT * FROM pageviews_daily;
+
+SELECT * FROM pageviews_daily_3;
+-- SQLBook: Code
+INSERT INTO pageviews_daily_3
+  (view_date, url_path,
+  customer_country, view_count)
+SELECT
+  CAST(p.ViewTime as Date) AS view_date,
+  p.UrlPath AS url_path,
+  c.CustomerCountry AS customer_country,
+  COUNT(*) AS view_count
+FROM PageViews p
+LEFT JOIN Customers c
+  ON c.CustomerId = p.CustomerId
+WHERE p.ViewTime > '2020-06-02 12:00:00'
+GROUP BY
+  CAST(p.ViewTime AS Date),
+  p.UrlPath,
+  c.CustomerCountry;
+-- SQLBook: Code
+select * from pageviews_daily_3 ORDER BY view_date, url_path, customer_country;
+-- SQLBook: Markup
+A better approach is to assume that more data has been loaded during the latest day (or week, month, and so on) in the model. The best approach is as follows:
+- Make a copy of pageviews_daily called tmp_pageviews_daily w/ all records up through the second to last day that it currently contains. In this example, it means all data through 06/01/20
+- Insert all records from the source table (PageViews) into the copy starting on the next day (06/02/20)
+- Truncate pageviews_daily and load the data from the tmp_pageviews_daily into it
+- Drop tmp_pageviews_daily 
+-- SQLBook: Code
+CREATE TABLE tmp_pageviews_daily AS
+SELECT *
+FROM pageviews_daily
+WHERE view_date
+  < (SELECT MAX(view_date) FROM pageviews_daily);
+-- SQLBook: Code
+INSERT INTO tmp_pageviews_daily
+  (view_date, url_path,
+  customer_country, view_count)
+SELECT
+  CAST(p.ViewTime as Date) AS view_date,
+  p.UrlPath AS url_path,
+  c.CustomerCountry AS customer_country,
+  COUNT(*) AS view_count
+FROM PageViews p
+LEFT JOIN Customers c
+  ON c.CustomerId = p.CustomerId
+WHERE p.ViewTime
+  > (SELECT MAX(view_date) FROM pageviews_daily)
+GROUP BY
+  CAST(p.ViewTime as Date),
+  p.UrlPath,
+  c.CustomerCountry;
+
+-- SQLBook: Code
+TRUNCATE TABLE pageviews_daily;
+-- SQLBook: Code
+SELECT * FROM tmp_pageviews_daily;
+-- SQLBook: Code
+INSERT INTO pageviews_daily
+SELECT * FROM tmp_pageviews_daily;
+-- SQLBook: Code
+DROP TABLE tmp_pageviews_daily;
+-- SQLBook: Markup
+This is the result of the proper incremetnal refresh. The total count of page views is correct, and the data is stored as efficiently as possible, given the requirement of the model: 
+-- SQLBook: Code
+SELECT * from pageviews_daily ORDER BY view_date, url_path, customer_country;
+-- SQLBook: Markup
+# Modeling Change Capture Data
+-- SQLBook: Code
+CREATE TABLE Orders_cdc
+(
+  EventType varchar(20),
+  OrderId int,
+  OrderStatus varchar(20),
+  LastUpdated timestamp
+);
+
+INSERT INTO Orders_cdc
+  VALUES('insert',1,'Backordered',
+    '2020-06-01 12:00:00');
+INSERT INTO Orders_cdc
+  VALUES('update',1,'Shipped',
+    '2020-06-09 12:00:25');
+INSERT INTO Orders_cdc
+  VALUES('delete',1,'Shipped',
+    '2020-06-10 9:05:12');
+INSERT INTO Orders_cdc
+  VALUES('insert',2,'Backordered',
+    '2020-07-01 11:00:00');
+INSERT INTO Orders_cdc
+  VALUES('update',2,'Shipped',
+    '2020-07-09 12:15:12');
+INSERT INTO Orders_cdc
+  VALUES('insert',3,'Backordered',
+    '2020-07-11 13:10:12');
+-- SQLBook: Markup
+You might want to report on the current status of all orders for use on an operational dashboard. Perhaps the dashboard needs to display the number of orders currently in each state. 
+-- SQLBook: Code
+CREATE TABLE orders_current (
+  order_status varchar(20),
+  order_count int
+);
+-- SQLBook: Markup
+Use a CTE instead of a subquery to find the MAX(LastUpdated) timestamp for each OrderId. I then join the resulting CTE to the Orders_cdc table to get the OrderStatus of the most recent record for each order. 
+-- SQLBook: Code
+INSERT INTO orders_current
+  (order_status, order_count)
+  WITH o_latest AS
+  (
+    SELECT
+       OrderId,
+       MAX(LastUpdated) AS max_updated
+    FROM Orders_cdc
+    GROUP BY orderid
+  )
+  SELECT o.OrderStatus,
+    Count(*) as order_count
+  FROM Orders_cdc o
+  INNER JOIN o_latest
+    ON o_latest.OrderId = o_latest.OrderId
+      AND o_latest.max_updated = o.LastUpdated
+  GROUP BY o.OrderStatus;
+-- SQLBook: Code
+SELECT * from orders_current;
+-- SQLBook: Markup
+For now, when an order is canceled by a customer, its gets deleted from the sources system.
+To take deletions into account, we will make a minor modification
+-- SQLBook: Code
+TRUNCATE TABLE orders_current;
+-- SQLBook: Code
+INSERT INTO orders_current
+  (order_status, order_count)
+  WITH o_latest AS
+  (
+    SELECT
+       OrderId,
+       MAX(LastUpdated) AS max_updated
+    FROM Orders_cdc
+    GROUP BY orderid
+  )
+  SELECT o.OrderStatus,
+    Count(*) AS order_count
+  FROM Orders_cdc o
+  INNER JOIN o_latest
+    ON o_latest.OrderId = o_latest.OrderId
+      AND o_latest.max_updated = o.LastUpdated
+  WHERE o.EventType <> 'delete'
+  GROUP BY o.OrderStatus;
+-- SQLBook: Code
+SELECT * from orders_current;
+-- SQLBook: Markup
+Perhaps an analyst wants to know how long, on avg, orders take to go from a BackOrdered to Shipped status. 
+
+We will use two CTEs to find the first date that each order was BackOrderd and Shipped. We will subtract the two to get how many days each order that has been both backordered and shipped was in a status of BackOrdered. 
+-- SQLBook: Code
+CREATE TABLE orders_time_to_ship (
+  OrderId int,
+  backordered_days interval
+);
+-- SQLBook: Code
+INSERT INTO orders_time_to_ship
+  (OrderId, backordered_days)
+WITH o_backordered AS
+(
+  SELECT
+     OrderId,
+     MIN(LastUpdated) AS first_backordered
+  FROM Orders_cdc
+  WHERE OrderStatus = 'Backordered'
+  GROUP BY OrderId
+),
+o_shipped AS
+(
+  SELECT
+     OrderId,
+     MIN(LastUpdated) AS first_shipped
+  FROM Orders_cdc
+  WHERE OrderStatus = 'Shipped'
+  GROUP BY OrderId
+)
+SELECT b.OrderId,
+  first_shipped - first_backordered
+    AS backordered_days
+FROM o_backordered b
+INNER JOIN o_shipped s on s.OrderId = b.OrderId;
+-- SQLBook: Markup
+We can now see the backorder times of each order a well as use the AVG() function to answer the original question:
+-- SQLBook: Code
+select * from orders_time_to_ship;
+SELECT AVG(backordered_days) from orders_time_to_ship;
+-- SQLBook: Markup
