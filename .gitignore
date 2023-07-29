@@ -178,3 +178,4 @@ cython_debug/
 
 user_create.pgsql
 airflow_instructions.txt
+aws_services_connection_tests/
