@@ -3,9 +3,18 @@ import boto3
 import configparser
 import psycopg2
 
+import os
+
+conf_file_path = "/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/pipeline.conf"
+
+if os.path.exists(conf_file_path):
+    print("Configuration file exists.")
+else:
+    print("Configuration file not found.")
+
 #get the db Redshift connection info
 parser = configparser.ConfigParser()
-parser.read("pipeline.conf")
+parser.read("/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/pipeline.conf")
 dbname = parser.get("aws_creds", "database")
 user = parser.get("aws_creds", "username")
 password = parser.get("aws_creds", "password")
@@ -32,7 +41,7 @@ rs_conn.commit()
 
 # connect to the airflow db
 parser2 = configparser.ConfigParser()
-parser2.read("pipeline.conf")
+parser2.read("/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/pipeline.conf")
 dbname = parser2.get("airflowdb_config", "database")
 user = parser2.get("airflowdb_config", "username")
 password = parser2.get("airflowdb_config", "password")
@@ -65,7 +74,7 @@ m_cursor = conn.cursor()
 m_cursor.execute(m_query, (last_id,))
 results = m_cursor.fetchall()
 
-local_filename = "dag_run_extract.csv"
+local_filename = "/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/dag_run_extract.csv"
 with open(local_filename, 'w') as fp:
     csv_w = csv.writer(fp, delimiter='|')
     csv_w.writerows(results)
@@ -76,7 +85,7 @@ conn.close()
 
 # load the aws_boto_credentials values
 parser = configparser.ConfigParser()
-parser.read("pipeline.conf")
+parser.read("/mnt/c/Users/Daniel/Desktop/data_pipelines_pocket_reference/pipeline.conf")
 access_key = parser.get("aws_boto_credentials",
                 "access_key")
 secret_key = parser.get("aws_boto_credentials",
