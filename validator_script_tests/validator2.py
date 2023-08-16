@@ -70,6 +70,35 @@ def execute_test(
     # if we made it here, something went wrong
     return False
 
+def log_result(
+        db_conn,
+        script_1,
+        script_2,
+        comp_operator,
+        result):
+    m_query = """INSERT INTO validation_run_history(
+                    script_1,
+                    script_2,
+                    comp_operator,
+                    test_result,
+                    test_run_at)
+                VALUES(%s, %s, %s, %s,
+                    current_timestamp);"""
+
+    m_cursor = db_conn.cursor()
+    m_cursor.execute(
+                m_query,
+                (script_1,
+                    script_2,
+                    comp_operator,
+                    result)
+            )
+    db_conn.commit()
+
+    m_cursor.close()
+    db_conn.close()
+
+    return
 if __name__ == "__main__":
     print(sys.argv)
     #print(sys.argv[1])
@@ -87,7 +116,7 @@ if __name__ == "__main__":
 
         exit(0)
     
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         print("Usage: python validator.py"
             + "script1.sql script2.sql "
             + "comparison_operator")
@@ -96,7 +125,7 @@ if __name__ == "__main__":
     script_1 = sys.argv[1]
     script_2 = sys.argv[2]
     comp_operator = sys.argv[3]
-
+    sev_level = sys.argv[4]
     # connect to the data warehouse
     db_conn = connect_to_warehouse()
 
@@ -107,11 +136,18 @@ if __name__ == "__main__":
                     script_2,
                     comp_operator)
     
+    log_result(
+        db_conn, 
+        script_1,
+        script_2,
+        comp_operator,
+        test_result)
     print("Result of test: " + str(test_result))
 
     if test_result == True:
         exit(0)
     else:
-        exit(-1)
-
-
+        if sev_level == "halt":
+            exit(-1)
+        else:
+            exit(0)

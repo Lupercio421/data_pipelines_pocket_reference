@@ -3,6 +3,7 @@ import psycopg2
 import configparser
 
 def connect_to_warehouse():
+    # get db connection parameters from the conf file
     parser = configparser.ConfigParser()
     parser.read("pipeline.conf")
     dbname = parser.get("aws_creds", "database")
@@ -11,13 +12,13 @@ def connect_to_warehouse():
     host = parser.get("aws_creds", "host")
     port = parser.get("aws_creds", "port")
 
-   # connect to the Redshift cluster
+    # connect to the Redshift cluster
     rs_conn = psycopg2.connect(
-        "dbname=" + dbname
-        + " user=" + user
-        + " password=" + password
-        + " host=" + host
-        + " port=" + port)
+                "dbname=" + dbname
+                + " user=" + user
+                + " password=" + password
+                + " host=" + host
+                + " port=" + port)
 
     return rs_conn
 
@@ -29,8 +30,8 @@ def execute_test(
         script_1,
         script_2,
         comp_operator):
-    
-    #execute the first script and store the result
+
+    # execute the 1st script and store the result
     cursor = db_conn.cursor()
     sql_file = open(script_1, 'r')
     cursor.execute(sql_file.read())
@@ -40,7 +41,7 @@ def execute_test(
     db_conn.commit()
     cursor.close()
 
-    #execute the second script and store the result
+    # execute the 2nd script and store the result
     cursor = db_conn.cursor()
     sql_file = open(script_2, 'r')
     cursor.execute(sql_file.read())
@@ -53,7 +54,7 @@ def execute_test(
     print("result 1 = " + str(result_1))
     print("result 2 = " + str(result_2))
 
-    #compare values based on the comp_operator
+    # compare values based on the comp_operator
     if comp_operator == "equals":
         return result_1 == result_2
     elif comp_operator == "greater_equals":
@@ -70,13 +71,50 @@ def execute_test(
     # if we made it here, something went wrong
     return False
 
+def log_result(
+        db_conn,
+        script_1,
+        script_2,
+        comp_operator,
+        result):
+    m_query = """INSERT INTO validation_run_history(
+                    script_1,
+                    script_2,
+                    comp_operator,
+                    test_result,
+                    test_run_at)
+                VALUES(%s, %s, %s, %s,
+                    current_timestamp);"""
+    
+    result_str = str(result)
+
+    m_cursor = db_conn.cursor()
+    m_cursor.execute(
+                m_query,
+                (script_1,
+                    script_2,
+                    comp_operator,
+                    result_str)
+            )
+    db_conn.commit()
+
+    m_cursor.close()
+    db_conn.close()
+
+    return
+
 if __name__ == "__main__":
-    print(sys.argv)
+    #print(len(sys.argv))
+    # for i in range(len(sys.argv)):
+    #     print("Argument {i} " + sys.argv[i])
+    # print(len(sys.argv) != 5)
+    # print(len(sys.argv) == 2 and sys.argv[1] == "-h")
     #print(sys.argv[1])
-    if len(sys.argv) == 2 and sys.argv[1] == '-h':
-        print("Usage: python validator.py"
-              + "script1.sql script2.sql "
-              + "comparison_operator")
+    # print(len(sys.argv) == 2)
+    if len(sys.argv) == 2 and sys.argv[1] == "-h":
+        print("Usage1: python validator.py"
+            + " script1.sql script2.sql "
+            + "comparison_operator")
         print("Valid comparison_operator values:")
         print("equals")
         print("greater_equals")
@@ -86,16 +124,17 @@ if __name__ == "__main__":
         print("not_equal")
 
         exit(0)
-    
-    if len(sys.argv) != 4:
-        print("Usage: python validator.py"
-            + "script1.sql script2.sql "
+
+    if len(sys.argv) != 5:
+        print("Usage2: python validator.py"
+            + " script1.sql script2.sql "
             + "comparison_operator")
         exit(-1)
-    
+
     script_1 = sys.argv[1]
     script_2 = sys.argv[2]
     comp_operator = sys.argv[3]
+    sev_level = sys.argv[4]
 
     # connect to the data warehouse
     db_conn = connect_to_warehouse()
@@ -106,12 +145,21 @@ if __name__ == "__main__":
                     script_1,
                     script_2,
                     comp_operator)
-    
+
+    # log the test in the data warehouse
+    log_result(
+        db_conn, 
+        script_1,
+        script_2,
+        comp_operator,
+        test_result)
+
     print("Result of test: " + str(test_result))
 
     if test_result == True:
         exit(0)
     else:
-        exit(-1)
-
-
+        if sev_level == "halt":
+            exit(-1)
+        else:
+            exit(0)

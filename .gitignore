@@ -8,6 +8,9 @@ psswd.txt
 new_user_credentials (1).csv
 amazonrds.text
 
+# airflow load file with exposed credentials
+airflow_load.py
+
 *.pyc
 *.exe
 *service-2.json
@@ -178,3 +181,4 @@ cython_debug/
 
 user_create.pgsql
 airflow_instructions.txt
+aws_services_connection_tests/
