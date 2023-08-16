@@ -8,6 +8,9 @@ psswd.txt
 new_user_credentials (1).csv
 amazonrds.text
 
+# airflow load file with exposed credentials
+airflow_load.py
+
 *.pyc
 *.exe
 *service-2.json
