@@ -1,5 +1,5 @@
 # Data Pipelines Pocket Reference
-This is the repo of my development work reading DPPR by James Densmore
+This repo contains the file for my development work for DPPR by James Densmore.
 
 # Reflections
 
@@ -20,10 +20,10 @@ One of the challenges I faced was setting up Airflow, a platform for orchestrati
 The chapter on transforming data provided enlightening lessons on querying tables using complex join and where clauses. These insights are invaluable for anyone working with data transformation, and I found the explanations and data modeling examples provided to be especially helpful.
 
 # Helpful Links
-Authorizing Amazon S3 Bucket operations using [IAM Roles](https://docs.aws.amazon.com/redshift/latest/mgmt/copy-unload-iam-role.html)
-How to create an IAM Role for [Amazon Redshift Cluster](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-create-role.html#spectrum-get-started-create-role)
-Creating a role for an [IAM User](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html)
-Solution to an Airflow configuration setting for [email notifications](https://cknotes.com/office365-smtp-error-554-5-2-0-storedrv-submission-exceptionsendasdeniedexception-mapiexceptionsendasdenied/)
-End to end guide for [Amazon Redshift connection with Python](https://medium.com/codex/aws-redshift-connects-with-python-part-1-setup-a-redshift-connection-with-python-b9f6a1fa49f0)
-COPY command syntax for data transfering in a [S3 Bucket](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html)
-Command line instructions to properly install Airflow to your [Python virtual environment](https://stackoverflow.com/a/72552421)
+- Authorizing Amazon S3 Bucket operations using [IAM Roles](https://docs.aws.amazon.com/redshift/latest/mgmt/copy-unload-iam-role.html)
+- How to create an IAM Role for [Amazon Redshift Cluster](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-create-role.html#spectrum-get-started-create-role)
+- Creating a role for an [IAM User](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html)
+- Solution to an Airflow configuration setting for [email notifications](https://cknotes.com/office365-smtp-error-554-5-2-0-storedrv-submission-exceptionsendasdeniedexception-mapiexceptionsendasdenied/)
+- End to end guide for [Amazon Redshift connection with Python](https://medium.com/codex/aws-redshift-connects-with-python-part-1-setup-a-redshift-connection-with-python-b9f6a1fa49f0)
+- COPY command syntax for data transfering in a [S3 Bucket](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html)
+- Command line instructions to properly install Airflow to your [Python virtual environment](https://stackoverflow.com/a/72552421)
