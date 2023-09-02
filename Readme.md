@@ -1,5 +1,5 @@
 # Data Pipelines Pocket Reference
-This repo contains the file for my development work for DPPR by James Densmore.
+This repo contains the files for my development work for DPPR by James Densmore.
 
 # Reflections
 
