@@ -21,7 +21,7 @@ The chapter on transforming data provided enlightening lessons on querying table
 
 # Helpful Links
 - Authorizing Amazon S3 Bucket operations using [IAM Roles](https://docs.aws.amazon.com/redshift/latest/mgmt/copy-unload-iam-role.html)
-- How to create an IAM Role for [Amazon Redshift Cluster](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-create-role.html#spectrum-get-started-create-role)
+- How to create an IAM Role for an [Amazon Redshift Cluster](https://docs.aws.amazon.com/redshift/latest/dg/c-getting-started-using-spectrum-create-role.html#spectrum-get-started-create-role)
 - Creating a role for an [IAM User](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html)
 - Solution to an Airflow configuration setting for [email notifications](https://cknotes.com/office365-smtp-error-554-5-2-0-storedrv-submission-exceptionsendasdeniedexception-mapiexceptionsendasdenied/)
 - End to end guide for [Amazon Redshift connection with Python](https://medium.com/codex/aws-redshift-connects-with-python-part-1-setup-a-redshift-connection-with-python-b9f6a1fa49f0)
